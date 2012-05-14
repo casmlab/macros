@@ -1,0 +1,259 @@
+' CreateOneModeProjection v1.0
+' Authors: Libby Hemphill (libbyh@gmail.com), himanshuhc
+' Last Updated: May 13, 2012
+
+' Description: Given a two column edgelist, creates a single-mode projection on the first column.
+' E.g. Given an edgelist of authors and journals, creates a one-mode projection of authors-authors.
+
+' BUGS
+' - includes column headers (e.g., vertex1) in edgelist
+' - ignores self-loops in creating one-mode edgelist
+' - hangs on big (>1000 edges?) networks
+
+' TO DO
+' - let user select which column to use for one-mode edgelist
+' - add to edgelist only if edge exists (i.e. edgeweight > 0)
+' - allow user to specify row where edges start (now assumes row2)
+
+Dim vertex1
+Dim vertex2
+Dim uniqVertex1
+Dim uniqVertex2
+
+Sub CreateOneModeProjection()
+
+shtName = ActiveSheet.Name
+
+For i = 1 To Worksheets.Count
+    If Sheets(i).Name = shtName Then
+     currSheetIndex = i
+     Exit For
+    End If
+Next
+
+On Error Resume Next
+    Sheets("onemode_edgelist").Activate
+    If Err.Number <> 0 Then
+        Worksheets.Add(After:=Worksheets(currSheetIndex)).Name = "onemode_edgelist"
+    End If
+    Err.Clear
+    
+    Sheets("onemode_matrix").Activate
+    If Err.Number <> 0 Then
+        Worksheets.Add(After:=Worksheets(currSheetIndex)).Name = "onemode_matrix"
+    End If
+    Err.Clear
+    
+    Sheets("twomode_matrix").Activate
+    If Err.Number <> 0 Then
+        Worksheets.Add(After:=Worksheets(currSheetIndex)).Name = "twomode_matrix"
+    End If
+    Err.Clear
+On Error GoTo 0
+
+Sheets(shtName).Activate
+
+' assumes sheet has column headers in row1
+rw = 2
+
+ReDim vertex1(0)
+ReDim vertex2(0)
+ReDim uniqVertex1(0)
+ReDim uniqVertex2(0)
+
+Do While True
+    If Cells(rw, 1) <> "" Then
+        alreadyExist = checkIfExistsInArray(vertex1, Cells(rw, 1))
+        If alreadyExist = -1 Then
+            ReDim Preserve vertex1(UBound(vertex1) + 1)
+            vertex1(UBound(vertex1)) = Cells(rw, 1)
+            ReDim Preserve vertex2(UBound(vertex2) + 1)
+            vertex2(UBound(vertex2)) = "@" & Cells(rw, 2)
+        Else
+            vertex2(alreadyExist) = vertex2(alreadyExist) & "@" & Cells(rw, 2)
+        End If
+        
+        alreadyExist = checkIfExistsInArray(uniqVertex2, Cells(rw, 2))
+        If alreadyExist = -1 Then
+            ReDim Preserve uniqVertex2(UBound(uniqVertex2) + 1)
+            uniqVertex2(UBound(uniqVertex2)) = Cells(rw, 2)
+        End If
+        
+        rw = rw + 1
+    Else
+        Exit Do
+    End If
+Loop
+
+For appnd = 1 To UBound(vertex2)
+    vertex2(appnd) = vertex2(appnd) & "@"
+Next
+
+' Build two-mode matrix from the edgelist
+Sheets("twomode_matrix").Activate
+Range("A4:ZZ65000") = ""
+ActiveWindow.Zoom = 75
+
+Range("A1") = "AFFILIATION MATRIX"
+Range("A2") = "The bi-modal matrix below was created using a Pivot Table. It includes Vertex1 as rows and Vertex2 topics as columns."
+Range("A3") = "It is the same data as the edge list, just represented as a matrix."
+Range("A4") = "Empty for debugging."
+Range("A5") = "Empty for debugging."
+
+' 5 is the offset for all the text at the top of the sheet
+
+For cl = 1 To UBound(uniqVertex2)
+    Cells(5, 1 + cl) = uniqVertex2(cl)
+Next
+Cells(5, 2 + UBound(uniqVertex2)) = "Grand Total"
+
+For rw = 1 To UBound(vertex1)
+    Cells(rw + 5, 1) = vertex1(rw)
+    sumInEachRow = 0
+    For cl = 1 To UBound(uniqVertex2)
+        If InStr(1, vertex2(rw), "@" & Cells(5, 1 + cl) & "@", vbTextCompare) <> 0 Then
+            Cells(rw + 5, 1 + cl) = 1
+            sumInEachRow = sumInEachRow + 1
+        End If
+    Next
+    Cells(rw + 5, 2 + UBound(uniqVertex2)) = sumInEachRow
+Next
+
+Cells(UBound(vertex1) + 6, 1) = "Grand Total"
+
+For gTinCol = 1 To UBound(uniqVertex2)
+    Cells(UBound(vertex1) + 6, 1 + gTinCol) = WorksheetFunction.Sum _
+                                    (Range(Cells(6, 1 + gTinCol), Cells(UBound(vertex1) + 6, 1 + gTinCol)))
+Next
+
+' Build a one-mode matrix from the two-mode one
+Sheets("onemode_matrix").Activate
+ActiveWindow.Zoom = 75
+Range("A1") = "ONE-MODE MATRIX"
+Range("A2") = "The uni-modal matrix below is a symmetric matrix (i.e., undirected) created from the affiliation matrix."
+Range("A3") = "Based on values in first vertex column."
+
+' vertex1 is of mode1, so variables use mode1a - first vertex, mode1b - second vertex
+Range("A5:ZZ65000") = ""
+colN = Range("A1").Column
+For ltr = 1 To UBound(vertex1)
+    Cells(5, colN + ltr) = vertex1(ltr)
+Next
+
+For ttb = 1 To UBound(vertex1)
+    Cells(5 + ttb, colN) = vertex1(ttb)
+Next
+
+
+For ltr = 1 To UBound(vertex1)
+    For ttb = 1 To UBound(vertex1)
+        mode1a = Cells(5, colN + ltr)
+        mode1b = Cells(5 + ttb, colN)
+        mode1Val = checkInMode1Matrix(mode1a, mode1b)
+        Cells(5 + ttb, colN + ltr) = mode1Val
+    Next
+Next
+
+'Create one-mode edgelist
+Sheets("onemode_edgelist").Activate
+ActiveWindow.Zoom = 75
+Range("A1:D65000") = ""
+Cells(1, 1) = "Vertex 1"
+Cells(1, 2) = "Vertex 2"
+Cells(1, 3) = "Edge Weight"
+
+rw = 2
+For n1 = 1 To (UBound(vertex1) - 1)
+    For n2 = (n1 + 1) To UBound(vertex1)
+        Cells(rw, 1) = vertex1(n1)
+        Cells(rw, 2) = vertex1(n2)
+        edgewt = CalcEdgeWeight(vertex1(n1), vertex1(n2))
+        Cells(rw, 3) = edgewt
+        rw = rw + 1
+    Next
+Next
+
+MsgBox "Done!"
+End Sub
+
+Function checkIfExistsInArray(arr, valu)
+flagVal = -1
+    For hc = 1 To UBound(arr)
+        If valu = arr(hc) Then
+            flagVal = hc
+            Exit For
+        End If
+    Next
+checkIfExistsInArray = flagVal
+End Function
+
+Function checkInMode1Matrix(v1, v2)
+    flagRet = 0
+
+    For tb = 1 To UBound(vertex1)
+     If Sheets("twomode_matrix").Cells(5 + tb, 1) = v1 Then
+        v1row = 5 + tb
+        Exit For
+    End If
+    Next
+    
+    For tb = 1 To UBound(vertex1)
+     If Sheets("twomode_matrix").Cells(5 + tb, 1) = v2 Then
+        v2row = 5 + tb
+        Exit For
+    End If
+    Next
+        
+    For lr = 1 To UBound(uniqVertex2)
+        If Sheets("twomode_matrix").Cells(v1row, 1 + lr) = 1 And Sheets("twomode_matrix").Cells(v2row, 1 + lr) = 1 Then
+            flagRet = flagRet + 1
+        End If
+    Next
+    
+    checkInMode1Matrix = flagRet
+End Function
+
+Function checkInMode2Matrix(v1, v2)
+    flagRet = 0
+
+    For tb = 1 To UBound(vertex2)
+     If Sheets("twomode_matrix").Cells(5 + tb, 1) = v1 Then
+        v1row = 5 + tb
+        Exit For
+    End If
+    Next
+    
+    For tb = 1 To UBound(vertex2)
+     If Sheets("twomode_matrix").Cells(5 + tb, 1) = v2 Then
+        v2row = 5 + tb
+        Exit For
+    End If
+    Next
+        
+    For lr = 1 To UBound(uniqVertex1)
+        If Sheets("twomode_matrix").Cells(v1row, 1 + lr) = 1 And Sheets("twomode_matrix").Cells(v2row, 1 + lr) = 1 Then
+            flagRet = flagRet + 1
+        End If
+    Next
+    
+    checkInMode2Matrix = flagRet
+End Function
+
+Function CalcEdgeWeight(v1, v2)
+
+    For tb = 1 To UBound(vertex1)
+     If Sheets("onemode_matrix").Cells(5 + tb, 1) = v1 Then
+        v1row = 5 + tb
+        Exit For
+    End If
+    Next
+    
+    For lr = 1 To UBound(vertex1)
+     If Sheets("onemode_matrix").Cells(5, 1 + lr) = v2 Then
+        v2col = 1 + lr
+        Exit For
+    End If
+    Next
+    
+    CalcEdgeWeight = Sheets("onemode_matrix").Cells(v1row, v2col)
+End Function

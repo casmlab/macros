@@ -17,7 +17,7 @@ Jeremy Renner | American Hustle
 Amy Adams | American Hustle
 Amy Adams | Her
 
-The easiest way to run the macro is to copy/paste the raw code from Github into the VisualBasic module screen in Excel. Here's Microsoft's explanation for creating macros: http://office.microsoft.com/en-us/excel-help/create-a-macro-HP005204711.aspx
+The easiest way to run the macro is to copy/paste the raw code from Github into the VisualBasic module screen in Excel. Here's Microsoft's explanation for creating macros: https://support.office.com/en-nz/article/Create-or-delete-a-macro-974ef220-f716-4e01-b015-3ea70e64937b
 
 Once you have the macro in your workbook, run it: http://office.microsoft.com/en-us/excel-help/run-a-macro-HP010342865.aspx
 

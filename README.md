@@ -3,13 +3,13 @@ macros
 
 Excel macros, mostly for NodeXL and other data analysis
 
-## CreateOneModeProjection ## 
+## CreateOneModeProjection 
 
 Given a Two-Mode edgelist, create a One-Mode projection with edge weights.
 
 ### Setup and Usage ###
 
-The macro expects (requires, really) a two-column spreadsheet with column headers where the first column is the node-type you want to keep and the second column is the other node-type. For instance, if you wanted a one-mode projection of actors and movies, you'd have a spreadsheet like so:
+The macro expects (**requires**, really) a two-column spreadsheet with column headers where the first column is the node-type you want to keep and the second column is the other node-type. For instance, if you wanted a one-mode projection of actors where edges are based on their co-appearance in movies, you'd have a spreadsheet like so:
 
 Actor | Movie
 --------|---------
@@ -23,9 +23,10 @@ Once you have the macro in your workbook, run it: http://office.microsoft.com/en
 
 After it runs, you can import the onemode_edgelist into NodeXL or whatever SNA package you're using.
 
-### Output ###
+### Output
 Given a spreadsheet with two columns - VertexA and VertexB - the macro will create 3 sheets:
 
 - two-mode matrix: a rectangular matrix with VertexA values as rows and VertexB values as columns
 - onemode_matrix: a square matrix of VertexA values where the cells are edge weights
 - onemode_edgelist: an edgelist of VertexA values, including an edgeweight column
+
